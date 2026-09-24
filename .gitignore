@@ -1,15 +1,21 @@
-# Виртуальное окружение
-venv/
-env/
-.venv/
-
-# Кэш Python
 __pycache__/
 *.py[cod]
+*$py.class
 
-# Локальные переменные и секреты
+.idea/
+venv/
+env/
 .env
 
-# Логи и временные файлы
-*.log
-cloudflared.exe
+*.wav
+*.mp3
+*.flac
+*.ogg
+*.flp
+*.mid
+*.midi
+
+session_loops/
+session_shots/
+session_midi/
+MIDI/
