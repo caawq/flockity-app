@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>FLOCKITY // Neural Sound Lab</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://telegram-web-app.com/js/telegram-web-app.js"></script>
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #0a0b0e 0%, #1a1c24 100%);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+    }
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    ::-webkit-scrollbar {
+      width: 2px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(168, 85, 247, .25);
+      border-radius: 999px;
+    }
+
+    /* Pulsating wave animation */
+    @keyframes wave {
+      0%, 100% {
+        transform: scaleY(.75);
+        opacity: .7;
+      }
+      50% {
+        transform: scaleY(1.1);
+        opacity: 1;
+      }
+    }
+
+    /* Breathe animation for drag & drop */
+    @keyframes breathe {
+      0%, 100% {
+        opacity: 0.4;
+      }
+      50% {
+        opacity: 1;
+      }
+    }
+
+    /* Modal entrance */
+    @keyframes modalIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px) scale(.97);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    /* Neon glow pulse */
+    @keyframes neonPulse {
+      0%, 100% {
+        filter: drop-shadow(0 0 8px rgba(168, 85, 247, .6));
+      }
+      50% {
+        filter: drop-shadow(0 0 16px rgba(168, 85, 247, .9));
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useCallback, useEffect, useMemo, useRef, useState } = React;
+
+    const MAX_SLOTS = 15;
+    const INITIAL_FILES = { loops: [], shots: [] };
+
+    const clamp = (value, min, max) => Math.min(max, Math.max(min, Number(value)));
+
+    function cn(...classes) {
+      return classes.filter(Boolean).join(" ");
+    }
+
+    const getTelegramUsername = () => {
+      try {
+        if (window.Telegram?.WebApp?.initDataUnsafe?.user?.username) {
+          return window.Telegram.WebApp.initDataUnsafe.user.username;
+        }
+      } catch (e) {
+        console.warn("Telegram WebApp not available:", e);
+      }
+      return "guest";
+    };
+
+    const getTelegramUserId = () => {
+      try {
+        if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+          return String(window.Telegram.WebApp.initDataUnsafe.user.id);
+        }
+      } catch (e) {
+        console.warn("Telegram WebApp not available:", e);
+      }
+      return "local_user";
+    };
+
+    /* ========================================
+       ICONS
+    ======================================== */
+
+    function TelegramIcon({ size = 17 }) {
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <path
+            d="M21.6 3.5 18.4 20c-.24 1.17-.87 1.46-1.76.91l-4.83-3.56-2.33 2.24c-.26.26-.48.48-.98.48l.35-4.92 8.96-8.09c.39-.35-.09-.55-.6-.2L6.13 13.8l-4.75-1.49c-1.03-.32-1.05-1.03.21-1.52L20.15 3.02c.87-.32 1.63.2 1.45.48Z"
+            fill="currentColor"
+          />
+        </svg>
+      );
+    }
+
+    function InstagramIcon({ size = 17 }) {
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <rect x="2" y="2" width="20" height="20" rx="5" stroke="currentColor" strokeWidth="2" fill="none"/>
+          <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="2" fill="none"/>
+          <circle cx="18" cy="6" r="1.5" fill="currentColor"/>
+        </svg>
+      );
+    }
+
+    function UploadIcon({ size = 32 }) {
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <path d="M12 4v12m0-12l-4 4m4-4 4 4M4 20h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      );
+    }
+
+    function PlayIcon({ size = 16 }) {
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <path d="M8 5.5v13l11-6.5L8 5.5Z" fill="currentColor" />
+        </svg>
+      );
+    }
+
+    function PauseIcon({ size = 16 }) {
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <path d="M7 5h3.5v14H7V5Zm6.5 0H17v14h-3.5V5Z" fill="currentColor" />
+        </svg>
+      );
+    }
+
+    function XIcon({ size = 14 }) {
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+          <path d="m6 6 12 12M18 6 6 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+        </svg>
+      );
+    }
+
+    /* ========================================
+       HARDWARE ELEMENTS
+    ======================================== */
+
+    function Screw() {
+      return (
+        <div className="relative h-[11px] w-[11px] shrink-0 rounded-full border border-zinc-500/70 bg-[radial-gradient(circle_at_35%_30%,#f8f8f8_0%,#a0a2a7_40%,#4a4d52_75%,#1a1c20_100%)] shadow-[inset_1px_1px_1.5px_rgba(255,255,255,.85),inset_-1px_-1px_1.5px_rgba(0,0,0,.6),0_1px_2px_rgba(0,0,0,.4)]">
+          <span className="absolute left-[2px] top-1/2 h-px w-[7px] -translate-y-1/2 rotate-45 bg-black/70" />
+        </div>
+      );
+    }
+
+    function LED({ active = false }) {
+      return (
+        <span
+          className={cn(
+            "inline-block h-[7px] w-[7px] rounded-full border transition-all duration-300",
+            active
+              ? "border-purple-400/80 bg-purple-500 shadow-[0_0_6px_rgba(168,85,247,.9),0_0_12px_rgba(168,85,247,.6)]"
+              : "border-zinc-700 bg-zinc-800 shadow-[inset_0_1px_2px_rgba(0,0,0,.8)]"
+          )}
+        />
+      );
+    }
+
+    /* ========================================
+       WAVEFORM
+    ======================================== */
+
+    function Waveform({ active = false }) {
+      const bars = useMemo(() => {
+        const count = 68;
+        return Array.from({ length: count }, (_, index) => {
+          const waveA = Math.sin(index * 0.52) * 0.5 + 0.5;
+          const waveB = Math.sin(index * 1.67 + 1.2) * 0.5 + 0.5;
+          const waveC = Math.sin(index * 3.4) * 0.5 + 0.5;
+          return Math.round(8 + (waveA * 0.6 + waveB * 0.25 + waveC * 0.15) * 38);
+        });
+      }, []);
+
+      return (
+        <div className="flex h-[55px] items-center gap-[2.5px] overflow-hidden px-1">
+          {bars.map((height, index) => (
+            <span
+              key={index}
+              className={cn(
+                "min-w-[2.5px] flex-1 rounded-full transition-all duration-200",
+                active
+                  ? "bg-[#c084fc] shadow-[0_0_6px_rgba(192,132,252,.7)]"
+                  : "bg-[#a855f7]/60",
+                active && "animate-[wave_1.5s_ease-in-out_infinite]"
+              )}
+              style={{
+                height: `${height}px`,
+                animationDelay: `${index * -20}ms`,
+              }}
+            />
+          ))}
+        </div>
+      );
+    }
+
+    /* ========================================
+       SLOT MANAGER MODAL
+    ======================================== */
+
+    function SlotManager({ type, files, onClose, onDelete, onPreview, playingIndex }) {
+      const isLoop = type === "loops";
+      const title = isLoop ? "LOOP BAY" : "SHOT BAY";
+
+      return (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-3 backdrop-blur-md"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) onClose();
+          }}
+        >
+          <div className="w-full max-w-[360px] overflow-hidden rounded-[24px] border border-white/10 bg-gradient-to-b from-[#1c1e24] to-[#14161b] shadow-[0_30px_80px_rgba(0,0,0,.7),inset_0_1px_0_rgba(255,255,255,.06)] animate-[modalIn_.25s_ease-out]">
+            <div className="flex items-center justify-between border-b border-white/[0.06] bg-black/20 px-4 py-3">
+              <div>
+                <div className="font-mono text-[9px] font-bold tracking-[0.18em] text-zinc-500">
+                  SLOT MANAGER // {isLoop ? "01" : "00"}
+                </div>
+                <div className="mt-0.5 text-[13px] font-black tracking-tight text-white">
+                  {title}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-zinc-900 text-zinc-400 transition-all hover:bg-zinc-800 active:scale-90"
+              >
+                <XIcon />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between bg-black/30 px-4 py-2">
+              <span className="font-mono text-[9px] font-semibold tracking-wider text-zinc-500">ACTIVE SLOTS</span>
+              <span className="font-mono text-[11px] font-black text-[#c084fc]">
+                {files.length.toString().padStart(2, "0")} / 15
+              </span>
+            </div>
+
+            <div className="max-h-[50vh] overflow-y-auto p-3">
+              {files.length === 0 ? (
+                <div className="flex min-h-[140px] items-center justify-center rounded-xl border border-dashed border-white/10 bg-black/20">
+                  <div className="text-center">
+                    <div className="font-mono text-[9px] font-bold tracking-[0.16em] text-zinc-600">
+                      BAY EMPTY
+                    </div>
+                    <div className="mt-1.5 text-[11px] text-zinc-500">
+                      Add audio files
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {files.map((file, index) => (
+                    <div
+                      key={file.id}
+                      className="flex items-center gap-2.5 rounded-lg border border-white/[0.05] bg-black/30 p-2.5 backdrop-blur-sm"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => onPreview(index)}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-b from-zinc-700 to-zinc-800 text-[#c084fc] shadow-[inset_0_1px_2px_rgba(255,255,255,.1),0_2px_4px_rgba(0,0,0,.3)] transition-all active:scale-90"
+                      >
+                        {playingIndex === index ? <PauseIcon /> : <PlayIcon />}
+                      </button>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[11px] font-bold text-zinc-200">
+                          {file.name}
+                        </div>
+                        <div className="mt-0.5 font-mono text-[9px] text-zinc-600">
+                          {(file.size / 1024 / 1024).toFixed(2)} MB
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => onDelete(index)}
+                        className="flex h-7 w-7 items-center justify-center rounded-full text-zinc-600 transition-all hover:bg-red-500/10 hover:text-red-400 active:scale-90"
+                      >
+                        <XIcon size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-white/[0.06] bg-black/20 p-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full rounded-xl border border-white/10 bg-gradient-to-b from-zinc-800 to-zinc-900 py-3 font-mono text-[10px] font-black tracking-[0.14em] text-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,.08),0_2px_4px_rgba(0,0,0,.3)] transition-all active:scale-[0.98]"
+              >
+                CLOSE BAY
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ========================================
+       INPUT BAY (DARK CARD WITH FULL-AREA DROP)
+    ======================================== */
+
+    function InputBay({ bay, count, onFiles, onManage }) {
+      const inputRef = useRef(null);
+      const [dragActive, setDragActive] = useState(false);
+      const isLoop = bay === "loops";
+
+      const processFiles = useCallback(
+        (fileList) => {
+          const audioFiles = Array.from(fileList || [])
+            .filter((file) => {
+              if (file.type.startsWith("audio/")) return true;
+              return /\.(wav|mp3|ogg|m4a|flac|aiff|aac)$/i.test(file.name);
+            })
+            .slice(0, MAX_SLOTS - count);
+
+          if (audioFiles.length > 0) {
+            onFiles(audioFiles);
+          }
+        },
+        [count, onFiles]
+      );
+
+      return (
+        <div
+          className={cn(
+            "relative flex min-h-[90px] cursor-pointer flex-col justify-between overflow-hidden rounded-xl border p-2.5 transition-all duration-200",
+            "bg-gradient-to-b from-[#16181d] to-[#0e1014]",
+            "shadow-[inset_0_1px_0_rgba(255,255,255,.03),inset_0_-6px_14px_rgba(0,0,0,.3),0_4px_8px_rgba(0,0,0,.2)]",
+            dragActive
+              ? "border-[#a855f7] shadow-[0_0_20px_rgba(168,85,247,.4),inset_0_1px_0_rgba(255,255,255,.05)]"
+              : "border-white/[0.06] hover:border-[#a855f7]/30 active:scale-[0.99]"
+          )}
+        >
+          {/* Hidden file input covering entire area */}
+          <input
+            ref={inputRef}
+            type="file"
+            multiple
+            accept="audio/wav,audio/mpeg,audio/*,.wav,.mp3"
+            className="absolute inset-0 z-40 h-full w-full cursor-pointer opacity-0"
+            onChange={(e) => {
+              processFiles(e.target.files);
+              e.target.value = "";
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragActive(true);
+            }}
+            onDragLeave={() => setDragActive(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragActive(false);
+              processFiles(e.dataTransfer.files);
+            }}
+          />
+
+          {/* Drag overlay */}
+          {dragActive && (
+            <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-[#a855f7]/10 backdrop-blur-[2px] animate-[breathe_3s_ease-in-out_infinite]">
+              <div className="text-[#c084fc]">
+                <UploadIcon size={36} />
+              </div>
+            </div>
+          )}
+
+          <div className="relative z-0 flex items-center justify-between pointer-events-none">
+            <div>
+              <div className="font-mono text-[8px] font-bold tracking-[0.18em] text-zinc-600">
+                BAY // {isLoop ? "01" : "02"}
+              </div>
+              <div className="mt-0.5 text-[11px] font-black tracking-tight text-zinc-100">
+                {isLoop ? "LOOP SOURCES" : "ONE SHOT SOURCES"}
+              </div>
+            </div>
+            <LED active={count > 0} />
+          </div>
+
+          <div className="relative z-0 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onManage();
+              }}
+              className="relative z-50 rounded-md border border-white/20 bg-[#2a2e38] px-2.5 py-1 font-mono text-[8px] font-bold tracking-wider text-white transition-all hover:bg-zinc-600 active:scale-95"
+            >
+              MANAGE
+            </button>
+
+            <div className="text-right">
+              <div className="font-mono text-[10px] font-bold">
+                <span className="text-[#c084fc]">{count}</span>
+                <span className="text-zinc-700"> / </span>
+                <span className="text-zinc-500">{MAX_SLOTS}</span>
+              </div>
+              <div className="font-mono text-[7px] tracking-wider text-zinc-700">WAV · MP3</div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ========================================
+       ROOM SIZE SELECTOR (VERTICAL BUTTONS)
+    ======================================== */
+
+    function RoomSizeSelector({ value, onChange }) {
+      const options = [
+        { value: "small", label: "S" },
+        { value: "middle", label: "M" },
+        { value: "large", label: "L" }
+      ];
+
+      return (
+        <div className="flex flex-col items-center gap-2">
+          <div className="font-mono text-[10px] font-black tracking-[0.2em] text-zinc-400">ROOM</div>
+          <div className="flex flex-col gap-1.5 rounded-lg border border-white/10 bg-gradient-to-b from-[#14161b] to-[#0c0e12] p-1.5 shadow-[inset_0_2px_4px_rgba(0,0,0,.6)]">
+            {options.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => onChange(option.value)}
+                className={cn(
+                  "flex h-[34px] w-[34px] items-center justify-center rounded-md font-mono text-[12px] font-black tracking-wide transition-all",
+                  value === option.value
+                    ? "bg-[#a855f7] text-white shadow-[0_0_10px_rgba(168,85,247,.5),inset_0_1px_0_rgba(255,255,255,.2)]"
+                    : "text-zinc-600 hover:text-zinc-400 active:scale-90"
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    /* ========================================
+       BPM CONTROL (LED DISPLAY STYLE)
+    ======================================== */
+
+    function BpmControl({ value, onChange }) {
+      const [editing, setEditing] = useState(false);
+      const [tempValue, setTempValue] = useState(String(value));
+      const inputRef = useRef(null);
+      const dragging = useRef(false);
+      const lastY = useRef(0);
+
+      useEffect(() => {
+        if (editing && inputRef.current) {
+          inputRef.current.focus();
+          inputRef.current.select();
+        }
+      }, [editing]);
+
+      const commitEdit = () => {
+        const num = parseInt(tempValue, 10);
+        if (!isNaN(num)) {
+          onChange(clamp(num, 60, 200));
+        }
+        setEditing(false);
+      };
+
+      const handlePointerDown = (e) => {
+        if (editing) return;
+        dragging.current = true;
+        lastY.current = e.clientY;
+        e.currentTarget.setPointerCapture?.(e.pointerId);
+      };
+
+      const handlePointerMove = (e) => {
+        if (!dragging.current) return;
+        const delta = lastY.current - e.clientY;
+        if (Math.abs(delta) > 3) {
+          lastY.current = e.clientY;
+          onChange(clamp(value + Math.sign(delta), 60, 200));
+        }
+      };
+
+      const stopDragging = () => {
+        dragging.current = false;
+      };
+
+      const handleWheel = (e) => {
+        if (editing) return;
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -1 : 1;
+        onChange(clamp(value + delta, 60, 200));
+      };
+
+      return (
+        <div className="flex flex-col items-center gap-2">
+          <div className="font-mono text-[10px] font-black tracking-[0.2em] text-zinc-400">BPM</div>
+          <div
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={stopDragging}
+            onPointerCancel={stopDragging}
+            onWheel={handleWheel}
+            onDoubleClick={() => setEditing(true)}
+            className="flex h-[110px] w-[52px] cursor-ns-resize select-none items-center justify-center rounded-lg border border-white/10 bg-gradient-to-b from-[#14161b] to-[#0a0c10] shadow-[inset_0_3px_6px_rgba(0,0,0,.7),0_2px_4px_rgba(0,0,0,.3)]"
+          >
+            {editing ? (
+              <input
+                ref={inputRef}
+                type="text"
+                value={tempValue}
+                onChange={(e) => setTempValue(e.target.value)}
+                onBlur={commitEdit}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commitEdit();
+                  if (e.key === "Escape") {
+                    setTempValue(String(value));
+                    setEditing(false);
+                  }
+                }}
+                className="w-full bg-transparent text-center font-mono text-[16px] font-black text-[#c084fc] outline-none"
+              />
+            ) : (
+              <div className="font-mono text-[16px] font-black text-[#c084fc] tracking-tight">
+                {value}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    /* ========================================
+       DRY/WET KNOB (PIXEL-PERFECT GEOMETRY)
+    ======================================== */
+
+    function DryWetKnob({ value, onChange }) {
+      const knobRef = useRef(null);
+      const dragging = useRef(false);
+      const lastY = useRef(0);
+
+      const displayValue = Math.round(value);
+      const progress = value / 100;
+
+      // SVG circle math (дуга 250 градусов)
+      const radius = 80;
+      const cx = 95;
+      const cy = 95;
+      const circumference = 2 * Math.PI * radius;
+      const maxArcLength = (250 / 360) * circumference;
+      const progressArcLength = progress * maxArcLength;
+
+      // Rotation для стрелки
+      const rotation = -125 + progress * 250;
+
+      // Glow intensity
+      const glowIntensity = 0.5 + progress * 0.5;
+
+      const updateFromPointer = useCallback(
+        (clientY) => {
+          if (!dragging.current) return;
+          const delta = lastY.current - clientY;
+          if (Math.abs(delta) < 0.5) return;
+          lastY.current = clientY;
+          onChange(clamp(value + delta * 0.45, 0, 100));
+        },
+        [onChange, value]
+      );
+
+      useEffect(() => {
+        const move = (e) => {
+          if (!dragging.current) return;
+          updateFromPointer(e.clientY);
+        };
+        const up = () => {
+          dragging.current = false;
+          document.body.style.cursor = "";
+          document.body.style.userSelect = "";
+        };
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", up);
+        return () => {
+          window.removeEventListener("pointermove", move);
+          window.removeEventListener("pointerup", up);
+        };
+      }, [updateFromPointer]);
+
+      const beginDrag = (e) => {
+        dragging.current = true;
+        lastY.current = e.clientY;
+        document.body.style.cursor = "ns-resize";
+        document.body.style.userSelect = "none";
+        e.currentTarget.setPointerCapture?.(e.pointerId);
+      };
+
+      const handleDoubleClick = () => {
+        const newValue = prompt("Enter DRY/WET value (0-100):", String(value));
+        if (newValue !== null) {
+          const parsed = parseInt(newValue, 10);
+          if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
+            onChange(parsed);
+          }
+        }
+      };
+
+      return (
+        <div className="flex flex-col items-center">
+          {/* Label */}
+          <div className="mb-2 font-mono text-[10px] font-black tracking-[0.18em] text-zinc-400">
+            DRY / WET
+          </div>
+
+          {/* Interactive digital display */}
+          <div
+            ref={knobRef}
+            onPointerDown={beginDrag}
+            onDoubleClick={handleDoubleClick}
+            onWheel={(e) => {
+              e.preventDefault();
+              const delta = e.deltaY > 0 ? -1 : 1;
+              const newValue = Math.max(0, Math.min(100, value + delta));
+              onChange(newValue);
+            }}
+            className="cursor-ns-resize select-none rounded-lg border border-white/10 bg-gradient-to-b from-[#14161b] to-[#0a0c10] px-6 py-3 font-mono text-[28px] font-black tracking-[0.14em] shadow-[inset_0_3px_6px_rgba(0,0,0,.7),0_2px_4px_rgba(0,0,0,.3)] transition-all duration-100"
+            style={{
+              color: '#c084fc',
+              boxShadow: `inset 0 3px 6px rgba(0,0,0,.7), 0 2px 4px rgba(0,0,0,.3), 0 0 ${10 + value / 2}px rgba(192,132,252,${0.3 + value / 150})`,
+              textShadow: `0 0 ${5 + value / 5}px rgba(192,132,252,${0.4 + value / 150})`
+            }}
+          >
+            {String(displayValue).padStart(3, "0")}
+          </div>
+        </div>
+      );
+    }
+
+    /* ========================================
+       FOOTSWITCH (STOMP BUTTON)
+    ======================================== */
+
+    function Footswitch({ rendering, progress, onClick }) {
+      return (
+        <button
+          type="button"
+          disabled={rendering}
+          onClick={onClick}
+          className="group relative mx-auto block w-full max-w-[300px] select-none transition-transform duration-100 active:scale-[0.96] disabled:cursor-wait"
+        >
+          <div className="relative h-[64px] rounded-[18px] border border-[#0e1014] bg-gradient-to-b from-[#30343a] via-[#1a1d23] to-[#0a0c10] p-[5px] shadow-[0_10px_18px_rgba(0,0,0,.4),inset_0_1px_2px_rgba(255,255,255,.15),inset_0_-8px_12px_rgba(0,0,0,.6)]">
+            <div className="relative flex h-full items-center justify-center overflow-hidden rounded-[14px] border border-black/80 bg-gradient-to-b from-[#22252b] to-[#0f1115] shadow-[inset_0_3px_6px_rgba(0,0,0,.8)]">
+              <div
+                className={cn(
+                  "mr-2.5 h-3.5 w-3.5 rounded-full transition-all duration-300",
+                  rendering
+                    ? "animate-pulse bg-[#c084fc] shadow-[0_0_10px_rgba(168,85,247,.9),0_0_20px_rgba(168,85,247,.6)]"
+                    : "bg-[#a855f7] shadow-[0_0_6px_rgba(168,85,247,.7),0_0_14px_rgba(168,85,247,.4)]"
+                )}
+              />
+              <span className="font-mono text-[11px] font-black tracking-[0.14em] text-zinc-100">
+                {rendering ? `RENDERING [${progress}%]` : "START RENDER"}
+              </span>
+            </div>
+          </div>
+        </button>
+      );
+    }
+
+    /* ========================================
+       TRANSPORT DRAWER
+    ======================================== */
+
+    function TransportDrawer({ open, audioUrl, isPlaying, onPlayPause, onClose }) {
+      const [currentTime, setCurrentTime] = useState(0);
+      const [duration, setDuration] = useState(0);
+      const audioRef = useRef(null);
+
+      useEffect(() => {
+        const audioElement = document.getElementById("flockity-output-audio");
+        if (!audioElement) return;
+
+        audioRef.current = audioElement;
+
+        const updateTime = () => setCurrentTime(audioElement.currentTime || 0);
+        const updateDuration = () => setDuration(audioElement.duration || 0);
+        const handleEnded = () => setCurrentTime(0);
+
+        audioElement.addEventListener("timeupdate", updateTime);
+        audioElement.addEventListener("loadedmetadata", updateDuration);
+        audioElement.addEventListener("ended", handleEnded);
+
+        return () => {
+          audioElement.removeEventListener("timeupdate", updateTime);
+          audioElement.removeEventListener("loadedmetadata", updateDuration);
+          audioElement.removeEventListener("ended", handleEnded);
+        };
+      }, [audioUrl]);
+
+      const handleSeek = (e) => {
+        const audioElement = audioRef.current;
+        if (!audioElement || !duration) return;
+        const newTime = (Number(e.target.value) / 100) * duration;
+        audioElement.currentTime = newTime;
+        setCurrentTime(newTime);
+      };
+
+      const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+      const getDisplayName = (url) => {
+        if (!url) return 'flockity_output.wav';
+        const audioElement = document.getElementById("flockity-output-audio");
+        if (audioElement && audioElement.getAttribute('data-filename')) {
+          return audioElement.getAttribute('data-filename');
+        }
+        const filename = url.split('/').pop();
+        return filename.replace(/^blob:/, '');
+      };
+
+      return (
+        <div
+          className={cn(
+            "fixed inset-x-0 bottom-0 z-[90] mx-auto w-full max-w-[390px] px-2 transition-transform duration-500",
+            open ? "translate-y-0" : "translate-y-[110%]"
+          )}
+        >
+          <div className="rounded-t-[24px] border border-white/10 bg-gradient-to-b from-[#e4e5e7] to-[#d8d9db] p-3 shadow-[0_-20px_60px_rgba(0,0,0,.5),inset_0_1px_0_white]">
+            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-zinc-400/60" />
+
+            <div className="flex items-center justify-between">
+              <div className="min-w-0 flex-1">
+                <div className="font-mono text-[8px] font-bold tracking-[0.16em] text-zinc-500">
+                  RENDER COMPLETE
+                </div>
+                <div className="mt-1 max-w-[260px] truncate text-[11px] font-black text-zinc-900">
+                  {getDisplayName(audioUrl)}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="ml-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-zinc-600 shadow-[inset_0_1px_2px_white,0_2px_4px_rgba(0,0,0,.15)] transition-all active:scale-90"
+              >
+                <XIcon />
+              </button>
+            </div>
+
+            <div className="mt-3 rounded-xl border border-zinc-300 bg-[#0f1115] p-2 shadow-[inset_0_2px_8px_rgba(0,0,0,.8)]">
+              <div className="flex h-[38px] items-center gap-[2px] overflow-hidden">
+                {Array.from({ length: 46 }, (_, i) => {
+                  const wave = Math.abs(Math.sin(i * 0.68)) * 0.7 + Math.abs(Math.sin(i * 1.88)) * 0.3;
+                  const height = Math.max(10, Math.round(wave * 100));
+                  return (
+                    <span
+                      key={i}
+                      className={cn(
+                        "w-[3px] min-w-[3px] rounded-full transition-all duration-150",
+                        isPlaying
+                          ? "bg-[#c084fc] shadow-[0_0_4px_rgba(192,132,252,.5)]"
+                          : "bg-[#a855f7]/60"
+                      )}
+                      style={{ height: `${height}%` }}
+                    />
+                  );
+                })}
+              </div>
+
+              {/* Progress bar */}
+              <div className="relative mt-2 h-1 w-full">
+                <div className="absolute inset-0 rounded-full bg-black/40" />
+                <div
+                  className="absolute inset-y-0 left-0 rounded-full bg-[#a855f7] shadow-[0_0_6px_rgba(168,85,247,.6)] transition-all duration-150"
+                  style={{ width: `${progressPercent}%` }}
+                />
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={progressPercent}
+                  onChange={handleSeek}
+                  disabled={!audioUrl || !duration}
+                  className="absolute inset-0 z-10 w-full cursor-pointer opacity-0"
+                  style={{ margin: 0 }}
+                />
+              </div>
+
+              <audio
+                id="flockity-output-audio"
+                src={audioUrl || undefined}
+                controls={false}
+                preload="metadata"
+                className="hidden"
+              />
+            </div>
+
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={onPlayPause}
+                disabled={!audioUrl}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-b from-zinc-700 to-zinc-800 text-[#c084fc] shadow-[inset_0_1px_0_rgba(255,255,255,.1),0_3px_6px_rgba(0,0,0,.25)] transition-all active:scale-95 disabled:opacity-50"
+              >
+                {isPlaying ? <PauseIcon size={14} /> : <PlayIcon size={14} />}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (audioUrl) {
+                    const link = document.createElement('a');
+                    link.href = audioUrl;
+                    link.download = getDisplayName(audioUrl);
+                    link.click();
+                  }
+                }}
+                disabled={!audioUrl}
+                className="flex-1 rounded-xl bg-gradient-to-b from-[#b968f5] to-[#a855f7] py-3 font-mono text-[9px] font-black tracking-[0.14em] text-white shadow-[0_0_16px_rgba(168,85,247,.3),inset_0_1px_0_rgba(255,255,255,.3),0_3px_6px_rgba(0,0,0,.2)] transition-all active:scale-[0.98] disabled:opacity-50"
+              >
+                DOWNLOAD TRACK
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ========================================
+       MAIN APP
+    ======================================== */
+
+    function Flockity() {
+      const [files, setFiles] = useState(INITIAL_FILES);
+      const [selectedSlot, setSelectedSlot] = useState(null);
+      const [dryWetValue, setDryWetValue] = useState(50);
+      const [roomSize, setRoomSize] = useState("middle");
+      const [bpmValue, setBpmValue] = useState(140);
+      const [rendering, setRendering] = useState(false);
+      const [renderProgress, setRenderProgress] = useState(0);
+      const [drawerOpen, setDrawerOpen] = useState(false);
+      const [audioUrl, setAudioUrl] = useState(null);
+      const [isPlaying, setIsPlaying] = useState(false);
+
+      const previewAudioRef = useRef(null);
+
+      const addFiles = useCallback((bay, incomingFiles) => {
+        setFiles((current) => {
+          const existing = current[bay];
+          const additions = incomingFiles.map((file, index) => ({
+            id: `${Date.now()}-${Math.random().toString(36).slice(2)}-${index}`,
+            file,
+            name: file.name,
+            size: file.size,
+            type: file.type,
+          }));
+          return {
+            ...current,
+            [bay]: [...existing, ...additions].slice(0, MAX_SLOTS),
+          };
+        });
+      }, []);
+
+      const deleteFile = useCallback((bay, index) => {
+        setFiles((current) => {
+          return {
+            ...current,
+            [bay]: current[bay].filter((_, itemIndex) => itemIndex !== index),
+          };
+        });
+      }, []);
+
+      const stopPreview = useCallback(() => {
+        if (previewAudioRef.current) {
+          previewAudioRef.current.pause();
+          previewAudioRef.current.currentTime = 0;
+          previewAudioRef.current = null;
+        }
+        setIsPlaying(false);
+      }, []);
+
+      const previewFile = useCallback(
+        (bay, index) => {
+          const item = files[bay][index];
+          if (!item?.file) return;
+
+          stopPreview();
+
+          const url = URL.createObjectURL(item.file);
+          const audio = new Audio(url);
+          previewAudioRef.current = audio;
+
+          audio.addEventListener("ended", () => {
+            URL.revokeObjectURL(url);
+            previewAudioRef.current = null;
+            setIsPlaying(false);
+          });
+
+          audio
+            .play()
+            .then(() => setIsPlaying(true))
+            .catch(() => {
+              URL.revokeObjectURL(url);
+              previewAudioRef.current = null;
+              setIsPlaying(false);
+            });
+        },
+        [files, stopPreview]
+      );
+
+      const startRender = async () => {
+        if (rendering) return;
+
+        setDrawerOpen(false);
+        setRendering(true);
+        setRenderProgress(0);
+        setIsPlaying(false);
+
+        if (audioUrl) {
+          URL.revokeObjectURL(audioUrl);
+          setAudioUrl(null);
+        }
+
+        const formData = new FormData();
+        formData.append("knob_value", String(dryWetValue));
+        formData.append("room_size", roomSize);
+        formData.append("bpm", String(bpmValue));
+        formData.append("username", getTelegramUsername());
+        formData.append("user_id", getTelegramUserId());
+
+        files.loops.forEach((item) => {
+          if (item.file) formData.append("loops", item.file);
+        });
+
+        files.shots.forEach((item) => {
+          if (item.file) formData.append("shots", item.file);
+        });
+
+        try {
+          const progressInterval = setInterval(() => {
+            setRenderProgress((prev) => {
+              if (prev >= 95) {
+                clearInterval(progressInterval);
+                return 95;
+              }
+              return prev + 5;
+            });
+          }, 200);
+
+          const response = await fetch("/api/render", {
+            method: "POST",
+            body: formData,
+          });
+
+          clearInterval(progressInterval);
+          setRenderProgress(100);
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || `HTTP ${response.status}`);
+          }
+
+          const data = await response.json();
+
+          if (data.status === "success" && data.download_url) {
+            const audioResponse = await fetch(data.download_url);
+            const audioBlob = await audioResponse.blob();
+
+            const filename = data.download_url.split('/').pop();
+            const url = URL.createObjectURL(audioBlob);
+
+            setAudioUrl(url);
+            setRendering(false);
+
+            const audioElement = document.getElementById("flockity-output-audio");
+            if (audioElement) {
+              audioElement.setAttribute('data-filename', filename);
+            }
+
+            setTimeout(() => {
+              setDrawerOpen(true);
+            }, 150);
+          } else {
+            throw new Error("Invalid server response");
+          }
+        } catch (error) {
+          console.error("Render failed:", error);
+          alert(`Render failed: ${error.message || String(error)}`);
+          setRendering(false);
+          setRenderProgress(0);
+        }
+      };
+
+      const toggleOutputPlayback = () => {
+        const audioElement = document.getElementById("flockity-output-audio");
+        if (!audioElement || !audioUrl) return;
+
+        if (audioElement.paused) {
+          audioElement.play().then(() => setIsPlaying(true)).catch(() => {});
+        } else {
+          audioElement.pause();
+          setIsPlaying(false);
+        }
+      };
+
+      useEffect(() => {
+        return () => {
+          stopPreview();
+          if (audioUrl) {
+            URL.revokeObjectURL(audioUrl);
+          }
+        };
+      }, [audioUrl, stopPreview]);
+
+      const modalFiles = selectedSlot === "loops" ? files.loops : selectedSlot === "shots" ? files.shots : [];
+      const [playingSlotIndex, setPlayingSlotIndex] = useState(null);
+
+      const modalPreview = (index) => {
+        if (!selectedSlot) return;
+        previewFile(selectedSlot, index);
+        setPlayingSlotIndex(index);
+      };
+
+      useEffect(() => {
+        if (!isPlaying) {
+          setPlayingSlotIndex(null);
+        }
+      }, [isPlaying]);
+
+      const modalDelete = (index) => {
+        if (!selectedSlot) return;
+        deleteFile(selectedSlot, index);
+        if (playingSlotIndex === index) {
+          stopPreview();
+          setPlayingSlotIndex(null);
+        }
+      };
+
+      return (
+        <div className="fixed inset-0 flex h-screen w-screen items-center justify-center overflow-hidden bg-gradient-to-b from-[#0a0b0e] to-[#1a1c24]">
+          {/* MAIN CONTAINER */}
+          <main className="relative mx-auto flex h-[100dvh] max-h-[850px] w-full max-w-[390px] flex-col overflow-hidden rounded-[38px] border border-zinc-700/80 bg-gradient-to-b from-[#e8e9eb] to-[#d4d6d9] shadow-[0_35px_90px_rgba(0,0,0,.8),inset_0_1px_0_white,inset_0_-2px_6px_rgba(0,0,0,.12)]">
+            {/* Corner screws */}
+            <div className="pointer-events-none absolute left-3.5 top-3.5 z-10"><Screw /></div>
+            <div className="pointer-events-none absolute right-3.5 top-3.5 z-10"><Screw /></div>
+            <div className="pointer-events-none absolute bottom-3.5 left-3.5 z-10"><Screw /></div>
+            <div className="pointer-events-none absolute bottom-3.5 right-3.5 z-10"><Screw /></div>
+
+            <div className="flex h-full flex-col justify-between overflow-y-auto px-3 pb-2 pt-3">
+              {/* HEADER */}
+              <header className="flex w-full shrink-0 items-center justify-between px-2 pb-1.5">
+                <div className="ml-3 min-w-0 flex-1">
+                  <div className="flex items-baseline">
+                    <h1 className="text-[19px] font-black tracking-[-0.02em] text-[#14161b] drop-shadow-[0_1px_0_rgba(255,255,255,.9)]">
+                      FLOCKITY
+                    </h1>
+                    <span className="ml-0.5 text-[20px] font-black text-[#a855f7] drop-shadow-[0_0_6px_rgba(168,85,247,.4)]">.</span>
+                  </div>
+                  <div className="mt-0.5 font-mono text-[7px] font-bold tracking-[0.2em] text-zinc-500">
+                    NEURAL SOUND LAB
+                  </div>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => window.open("https://instagram.com/", "_blank")}
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-400/70 bg-gradient-to-b from-[#fafafa] to-[#a8aaaf] text-[#2a2c32] shadow-[inset_1px_1px_2px_white,inset_-2px_-2px_3px_rgba(0,0,0,.2),0_3px_6px_rgba(0,0,0,.15)] transition-all active:scale-90"
+                  >
+                    <InstagramIcon />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => window.open("https://t.me/", "_blank")}
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-400/70 bg-gradient-to-b from-[#fafafa] to-[#a8aaaf] text-[#2a2c32] shadow-[inset_1px_1px_2px_white,inset_-2px_-2px_3px_rgba(0,0,0,.2),0_3px_6px_rgba(0,0,0,.15)] transition-all active:scale-90"
+                  >
+                    <TelegramIcon />
+                  </button>
+                </div>
+              </header>
+
+              {/* OLED DISPLAY */}
+              <section className="shrink-0 rounded-[20px] border border-black/70 bg-gradient-to-b from-[#0a0c10] to-[#060709] p-2.5 shadow-[inset_0_4px_14px_rgba(0,0,0,.9),inset_0_-1px_0_rgba(255,255,255,.04),0_5px_10px_rgba(0,0,0,.25)]">
+                <div className="flex items-center justify-between px-0.5 pb-1.5">
+                  <span className="font-mono text-[7px] font-bold tracking-[0.18em] text-zinc-700">
+                    FLOCKITY // MASTER RACK
+                  </span>
+                  <span className="flex items-center gap-1.5 font-mono text-[7px] font-bold tracking-[0.14em] text-[#c084fc]">
+                    <LED active={rendering} />
+                    {rendering ? "CLI BUSY" : "DSP READY"}
+                  </span>
+                </div>
+
+                <div className="overflow-hidden rounded-xl border border-white/[0.02] bg-[#060709] shadow-[inset_0_2px_10px_rgba(0,0,0,.9)]">
+                  <Waveform active={rendering || files.loops.length > 0 || files.shots.length > 0} />
+                </div>
+
+                <div className="mt-1 flex items-center justify-between px-0.5 font-mono text-[6px] tracking-[0.14em] text-zinc-800">
+                  <span>64 BAR DSP SEQUENCE</span>
+                  <span>{rendering ? `${renderProgress}%` : "44.1KHZ / 24BIT"}</span>
+                </div>
+              </section>
+
+              {/* INPUT BAYS */}
+              <section className="mt-2 grid shrink-0 grid-cols-2 gap-2">
+                <InputBay
+                  bay="loops"
+                  count={files.loops.length}
+                  onFiles={(incoming) => addFiles("loops", incoming)}
+                  onManage={() => setSelectedSlot("loops")}
+                />
+                <InputBay
+                  bay="shots"
+                  count={files.shots.length}
+                  onFiles={(incoming) => addFiles("shots", incoming)}
+                  onManage={() => setSelectedSlot("shots")}
+                />
+              </section>
+
+              {/* CONTROL ZONE (ROOM | DRY/WET | BPM) */}
+              <div className="mt-2 flex shrink-0 items-center justify-between gap-3 px-1">
+                <div className="shrink-0">
+                  <RoomSizeSelector value={roomSize} onChange={setRoomSize} />
+                </div>
+                <DryWetKnob value={dryWetValue} onChange={setDryWetValue} />
+                <div className="pt-8">
+                  <BpmControl value={bpmValue} onChange={setBpmValue} />
+                </div>
+              </div>
+
+              {/* FOOTSWITCH */}
+              <section className="mt-2 shrink-0 pb-1">
+                <Footswitch rendering={rendering} progress={renderProgress} onClick={startRender} />
+                <div className="mt-1.5 text-center font-mono text-[7px] font-semibold tracking-[0.16em] text-zinc-400">
+                  FLOCKITY by @muinne__
+                </div>
+              </section>
+            </div>
+          </main>
+
+          {/* SLOT MANAGER MODAL */}
+          {selectedSlot && (
+            <SlotManager
+              type={selectedSlot}
+              files={modalFiles}
+              onClose={() => {
+                stopPreview();
+                setSelectedSlot(null);
+              }}
+              onDelete={modalDelete}
+              onPreview={modalPreview}
+              playingIndex={playingSlotIndex}
+            />
+          )}
+
+          {/* TRANSPORT DRAWER */}
+          <TransportDrawer
+            open={drawerOpen}
+            audioUrl={audioUrl}
+            isPlaying={isPlaying}
+            onPlayPause={toggleOutputPlayback}
+            onClose={() => {
+              const audioElement = document.getElementById("flockity-output-audio");
+              if (audioElement) {
+                audioElement.pause();
+                audioElement.currentTime = 0;
+              }
+              setIsPlaying(false);
+              setDrawerOpen(false);
+            }}
+          />
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<Flockity />);
+  </script>
+</body>
+</html>
