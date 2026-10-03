@@ -11,6 +11,7 @@ env/
 .idea/
 .vscode/
 
+MIDI/
 users/
 session_midi/
 upload_temp/
