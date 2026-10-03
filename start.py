@@ -164,21 +164,27 @@ class ProcessManager:
         env = os.environ.copy()
         env["WEBAPP_URL"] = self.tunnel_url
 
+        print(f"[STAGE 3] Setting WEBAPP_URL={self.tunnel_url}")
+
         try:
             self.processes['bot'] = subprocess.Popen(
                 [sys.executable, str(BASE_DIR / "bot.py")],
                 env=env,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stderr=subprocess.STDOUT,  # Merge stderr into stdout
                 text=True,
-                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
+                encoding="utf-8",
+                errors="ignore",
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+                bufsize=1  # Line buffering
             )
 
             time.sleep(2)
 
             if self.processes['bot'].poll() is not None:
-                _, stderr = self.processes['bot'].communicate()
-                raise RuntimeError(f"Bot failed to start: {stderr}")
+                # Bot died, read output
+                output, _ = self.processes['bot'].communicate()
+                raise RuntimeError(f"Bot failed to start:\n{output}")
 
             print(f"✅ [STAGE 3] Bot running (PID: {self.processes['bot'].pid})")
             print(f"\n{'='*60}")

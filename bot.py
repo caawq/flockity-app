@@ -1,10 +1,11 @@
 """
 Flockity Telegram Bot (aiogram 3.x)
-Launches Mini App via inline WebApp button
+Launches Mini App via inline WebApp button with automatic session creation
 """
 import os
 import asyncio
 import logging
+import requests
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.types import WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton
@@ -32,6 +33,9 @@ BOT_TOKEN = "8917265297:AAH5X9585lFgGVtNepFtA6u-JGQbJWBqchs"  # ← Replace with
 #
 WEBAPP_URL = os.getenv("WEBAPP_URL", "https://fallback.trycloudflare.com")  # ← Replace with YOUR tunnel URL
 
+# Local API endpoint (adjust if backend runs on different port)
+API_BASE = os.getenv("API_BASE", "http://localhost:8000")
+
 # ===== SETUP =====
 
 logging.basicConfig(level=logging.INFO)
@@ -43,14 +47,42 @@ dp = Dispatcher()
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
     """
-    Handle /start command - send Mini App launch button
+    Handle /start command:
+    1. Create new session via API
+    2. Send Mini App launch button with session_id in URL
     """
+    user_id = str(message.from_user.id)
+
+    try:
+        # Create new session (staging area)
+        response = requests.post(
+            f"{API_BASE}/api/session/new",
+            data={"user_id": user_id},
+            timeout=10
+        )
+        response.raise_for_status()
+        session_data = response.json()
+        session_id = session_data.get("session_id")
+
+        if not session_id:
+            raise ValueError("No session_id returned from API")
+
+        # Build Mini App URL with session_id
+        webapp_url_with_session = f"{WEBAPP_URL}?session_id={session_id}"
+
+        logging.info(f"✅ Session created: user={user_id}, session={session_id}")
+
+    except Exception as e:
+        logging.error(f"❌ Session creation failed: {e}")
+        # Fallback: Open Mini App without session_id (will create on frontend)
+        webapp_url_with_session = WEBAPP_URL
+
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
                     text="🎵 Launch Flockity",
-                    web_app=WebAppInfo(url=WEBAPP_URL)
+                    web_app=WebAppInfo(url=webapp_url_with_session)
                 )
             ]
         ]

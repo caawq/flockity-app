@@ -1,21 +1,43 @@
+# Python кэш и байткод
 __pycache__/
 *.py[cod]
 *$py.class
+*.log
+.pytest_cache/
 
-.idea/
+# Виртуальное окружение и IDE
 venv/
 env/
 .env
+.idea/
+.vscode/
 
+# Пользовательские сессии и временные папки
+users/
+session_midi/
+upload_temp/
+tasks/
+rendered_output/
+
+# Игнорируем содержимое папок сэмплов, но сохраняем сами папки
+session_loops/*
+!session_loops/.gitkeep
+session_shots/*
+!session_shots/.gitkeep
+
+# Игнорируем временные сгенерированные файлы, но сохраняем template.flp и MIDI/
+active_render.flp
+active_master.mid
+active_*.flp
+active_*.mid
+
+# Аудиофайлы (чтобы сэмплы и mp3 не засоряли репозиторий)
 *.wav
 *.mp3
 *.flac
 *.ogg
-*.flp
-*.mid
-*.midi
 
-session_loops/
-session_shots/
-session_midi/
-MIDI/
+# Системные файлы
+.DS_Store
+Thumbs.db
+desktop.ini

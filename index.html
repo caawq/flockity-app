@@ -34,7 +34,6 @@
       border-radius: 999px;
     }
 
-    /* Pulsating wave animation */
     @keyframes wave {
       0%, 100% {
         transform: scaleY(.75);
@@ -46,7 +45,6 @@
       }
     }
 
-    /* Breathe animation for drag & drop */
     @keyframes breathe {
       0%, 100% {
         opacity: 0.4;
@@ -56,7 +54,6 @@
       }
     }
 
-    /* Modal entrance */
     @keyframes modalIn {
       from {
         opacity: 0;
@@ -65,16 +62,6 @@
       to {
         opacity: 1;
         transform: translateY(0) scale(1);
-      }
-    }
-
-    /* Neon glow pulse */
-    @keyframes neonPulse {
-      0%, 100% {
-        filter: drop-shadow(0 0 8px rgba(168, 85, 247, .6));
-      }
-      50% {
-        filter: drop-shadow(0 0 16px rgba(168, 85, 247, .9));
       }
     }
   </style>
@@ -115,10 +102,6 @@
       }
       return "local_user";
     };
-
-    /* ========================================
-       ICONS
-    ======================================== */
 
     function TelegramIcon({ size = 17 }) {
       return (
@@ -173,10 +156,6 @@
       );
     }
 
-    /* ========================================
-       HARDWARE ELEMENTS
-    ======================================== */
-
     function Screw() {
       return (
         <div className="relative h-[11px] w-[11px] shrink-0 rounded-full border border-zinc-500/70 bg-[radial-gradient(circle_at_35%_30%,#f8f8f8_0%,#a0a2a7_40%,#4a4d52_75%,#1a1c20_100%)] shadow-[inset_1px_1px_1.5px_rgba(255,255,255,.85),inset_-1px_-1px_1.5px_rgba(0,0,0,.6),0_1px_2px_rgba(0,0,0,.4)]">
@@ -197,10 +176,6 @@
         />
       );
     }
-
-    /* ========================================
-       WAVEFORM
-    ======================================== */
 
     function Waveform({ active = false }) {
       const bars = useMemo(() => {
@@ -235,10 +210,6 @@
       );
     }
 
-    /* ========================================
-       SLOT MANAGER MODAL
-    ======================================== */
-
     function SlotManager({ type, files, onClose, onDelete, onPreview, playingIndex }) {
       const isLoop = type === "loops";
       const title = isLoop ? "LOOP BAY" : "SHOT BAY";
@@ -254,7 +225,7 @@
             <div className="flex items-center justify-between border-b border-white/[0.06] bg-black/20 px-4 py-3">
               <div>
                 <div className="font-mono text-[9px] font-bold tracking-[0.18em] text-zinc-500">
-                  SLOT MANAGER // {isLoop ? "01" : "00"}
+                  SLOT MANAGER // {isLoop ? "01" : "02"}
                 </div>
                 <div className="mt-0.5 text-[13px] font-black tracking-tight text-white">
                   {title}
@@ -340,10 +311,6 @@
       );
     }
 
-    /* ========================================
-       INPUT BAY (DARK CARD WITH FULL-AREA DROP)
-    ======================================== */
-
     function InputBay({ bay, count, onFiles, onManage }) {
       const inputRef = useRef(null);
       const [dragActive, setDragActive] = useState(false);
@@ -353,7 +320,7 @@
         (fileList) => {
           const audioFiles = Array.from(fileList || [])
             .filter((file) => {
-              if (file.type.startsWith("audio/")) return true;
+              if (file.type && file.type.startsWith("audio/")) return true;
               return /\.(wav|mp3|ogg|m4a|flac|aiff|aac)$/i.test(file.name);
             })
             .slice(0, MAX_SLOTS - count);
@@ -376,7 +343,6 @@
               : "border-white/[0.06] hover:border-[#a855f7]/30 active:scale-[0.99]"
           )}
         >
-          {/* Hidden file input covering entire area */}
           <input
             ref={inputRef}
             type="file"
@@ -389,17 +355,26 @@
             }}
             onDragOver={(e) => {
               e.preventDefault();
+              e.stopPropagation();
               setDragActive(true);
             }}
-            onDragLeave={() => setDragActive(false)}
+            onDragEnter={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setDragActive(false);
+            }}
             onDrop={(e) => {
               e.preventDefault();
+              e.stopPropagation();
               setDragActive(false);
               processFiles(e.dataTransfer.files);
             }}
           />
 
-          {/* Drag overlay */}
           {dragActive && (
             <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-[#a855f7]/10 backdrop-blur-[2px] animate-[breathe_3s_ease-in-out_infinite]">
               <div className="text-[#c084fc]">
@@ -408,7 +383,7 @@
             </div>
           )}
 
-          <div className="relative z-0 flex items-center justify-between pointer-events-none">
+          <div className="relative z-50 flex items-center justify-between pointer-events-none">
             <div>
               <div className="font-mono text-[8px] font-bold tracking-[0.18em] text-zinc-600">
                 BAY // {isLoop ? "01" : "02"}
@@ -420,7 +395,7 @@
             <LED active={count > 0} />
           </div>
 
-          <div className="relative z-0 flex items-center justify-between">
+          <div className="relative z-50 flex items-center justify-between">
             <button
               type="button"
               onClick={(e) => {
@@ -433,21 +408,17 @@
             </button>
 
             <div className="text-right">
-              <div className="font-mono text-[10px] font-bold">
+              <div className="font-mono text-[10px] font-bold pointer-events-none">
                 <span className="text-[#c084fc]">{count}</span>
                 <span className="text-zinc-700"> / </span>
                 <span className="text-zinc-500">{MAX_SLOTS}</span>
               </div>
-              <div className="font-mono text-[7px] tracking-wider text-zinc-700">WAV · MP3</div>
+              <div className="font-mono text-[7px] tracking-wider text-zinc-700 pointer-events-none">WAV · MP3</div>
             </div>
           </div>
         </div>
       );
     }
-
-    /* ========================================
-       ROOM SIZE SELECTOR (VERTICAL BUTTONS)
-    ======================================== */
 
     function RoomSizeSelector({ value, onChange }) {
       const options = [
@@ -479,10 +450,6 @@
         </div>
       );
     }
-
-    /* ========================================
-       BPM CONTROL (LED DISPLAY STYLE)
-    ======================================== */
 
     function BpmControl({ value, onChange }) {
       const [editing, setEditing] = useState(false);
@@ -571,31 +538,12 @@
       );
     }
 
-    /* ========================================
-       DRY/WET KNOB (PIXEL-PERFECT GEOMETRY)
-    ======================================== */
-
     function DryWetKnob({ value, onChange }) {
       const knobRef = useRef(null);
       const dragging = useRef(false);
       const lastY = useRef(0);
 
       const displayValue = Math.round(value);
-      const progress = value / 100;
-
-      // SVG circle math (дуга 250 градусов)
-      const radius = 80;
-      const cx = 95;
-      const cy = 95;
-      const circumference = 2 * Math.PI * radius;
-      const maxArcLength = (250 / 360) * circumference;
-      const progressArcLength = progress * maxArcLength;
-
-      // Rotation для стрелки
-      const rotation = -125 + progress * 250;
-
-      // Glow intensity
-      const glowIntensity = 0.5 + progress * 0.5;
 
       const updateFromPointer = useCallback(
         (clientY) => {
@@ -646,12 +594,10 @@
 
       return (
         <div className="flex flex-col items-center">
-          {/* Label */}
           <div className="mb-2 font-mono text-[10px] font-black tracking-[0.18em] text-zinc-400">
             DRY / WET
           </div>
 
-          {/* Interactive digital display */}
           <div
             ref={knobRef}
             onPointerDown={beginDrag}
@@ -674,10 +620,6 @@
         </div>
       );
     }
-
-    /* ========================================
-       FOOTSWITCH (STOMP BUTTON)
-    ======================================== */
 
     function Footswitch({ rendering, progress, onClick }) {
       return (
@@ -705,10 +647,6 @@
         </button>
       );
     }
-
-    /* ========================================
-       TRANSPORT DRAWER
-    ======================================== */
 
     function TransportDrawer({ open, audioUrl, isPlaying, onPlayPause, onClose }) {
       const [currentTime, setCurrentTime] = useState(0);
@@ -747,7 +685,7 @@
       const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
       const getDisplayName = (url) => {
-        if (!url) return 'flockity_output.wav';
+        if (!url) return 'flockity_output.mp3';
         const audioElement = document.getElementById("flockity-output-audio");
         if (audioElement && audioElement.getAttribute('data-filename')) {
           return audioElement.getAttribute('data-filename');
@@ -805,7 +743,6 @@
                 })}
               </div>
 
-              {/* Progress bar */}
               <div className="relative mt-2 h-1 w-full">
                 <div className="absolute inset-0 rounded-full bg-black/40" />
                 <div
@@ -864,10 +801,6 @@
       );
     }
 
-    /* ========================================
-       MAIN APP
-    ======================================== */
-
     function Flockity() {
       const [files, setFiles] = useState(INITIAL_FILES);
       const [selectedSlot, setSelectedSlot] = useState(null);
@@ -879,10 +812,79 @@
       const [drawerOpen, setDrawerOpen] = useState(false);
       const [audioUrl, setAudioUrl] = useState(null);
       const [isPlaying, setIsPlaying] = useState(false);
+      const [sessionId, setSessionId] = useState(null);
 
       const previewAudioRef = useRef(null);
 
-      const addFiles = useCallback((bay, incomingFiles) => {
+      useEffect(() => {
+        const initSession = async () => {
+          const urlParams = new URLSearchParams(window.location.search);
+          let sid = urlParams.get('session_id');
+
+          if (sid) {
+            localStorage.setItem('flockity_session_id', sid);
+            setSessionId(sid);
+            return;
+          }
+
+          sid = localStorage.getItem('flockity_session_id');
+          if (sid) {
+            setSessionId(sid);
+            return;
+          }
+
+          try {
+            const userId = getTelegramUserId();
+            const response = await fetch('/api/session/new', {
+              method: 'POST',
+              body: new URLSearchParams({ user_id: userId })
+            });
+
+            if (!response.ok) throw new Error('Session creation failed');
+
+            const data = await response.json();
+            sid = data.session_id;
+            localStorage.setItem('flockity_session_id', sid);
+            setSessionId(sid);
+          } catch (error) {
+            console.error('[SESSION] Failed to create session:', error);
+          }
+        };
+
+        initSession();
+      }, []);
+
+      const addFiles = useCallback(async (bay, incomingFiles) => {
+        let currentSessionId = sessionId;
+
+        if (!currentSessionId) {
+          currentSessionId = localStorage.getItem('flockity_session_id');
+
+          if (!currentSessionId) {
+            try {
+              const userId = getTelegramUserId();
+              const response = await fetch('/api/session/new', {
+                method: 'POST',
+                body: new URLSearchParams({ user_id: userId })
+              });
+
+              if (response.ok) {
+                const data = await response.json();
+                currentSessionId = data.session_id;
+                localStorage.setItem('flockity_session_id', currentSessionId);
+                setSessionId(currentSessionId);
+              } else {
+                throw new Error('Session creation failed');
+              }
+            } catch (error) {
+              alert('Failed to initialize session. Please refresh.');
+              return;
+            }
+          } else {
+            setSessionId(currentSessionId);
+          }
+        }
+
         setFiles((current) => {
           const existing = current[bay];
           const additions = incomingFiles.map((file, index) => ({
@@ -897,16 +899,69 @@
             [bay]: [...existing, ...additions].slice(0, MAX_SLOTS),
           };
         });
-      }, []);
 
-      const deleteFile = useCallback((bay, index) => {
+        try {
+          const userId = getTelegramUserId();
+          const fileType = bay === "loops" ? "loops" : "shots";
+
+          const formData = new FormData();
+          formData.append("user_id", userId);
+          formData.append("session_id", currentSessionId);
+          formData.append("file_type", fileType);
+
+          incomingFiles.forEach((file) => {
+            formData.append("files", file);
+          });
+
+          const response = await fetch("/api/upload", {
+            method: "POST",
+            body: formData,
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || "Upload failed");
+          }
+        } catch (error) {
+          console.error(`Upload failed:`, error);
+          alert(`Upload failed: ${error.message}`);
+
+          setFiles((current) => ({
+            ...current,
+            [bay]: current[bay].filter(item =>
+              !incomingFiles.some(f => f.name === item.file.name)
+            ),
+          }));
+        }
+      }, [sessionId]);
+
+      const deleteFile = useCallback(async (bay, index) => {
+        const fileToRemove = files[bay][index];
+
         setFiles((current) => {
           return {
             ...current,
             [bay]: current[bay].filter((_, itemIndex) => itemIndex !== index),
           };
         });
-      }, []);
+
+        if (fileToRemove && sessionId) {
+          try {
+            await fetch("/api/delete", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                user_id: getTelegramUserId(),
+                session_id: sessionId,
+                file_type: bay === "loops" ? "loops" : "shots",
+                filename: fileToRemove.name,
+              }),
+            });
+          } catch (error) {
+            console.error(`Delete failed:`, error);
+          }
+        }
+      }, [files, sessionId]);
 
       const stopPreview = useCallback(() => {
         if (previewAudioRef.current) {
@@ -949,6 +1004,11 @@
       const startRender = async () => {
         if (rendering) return;
 
+        if (!sessionId) {
+          alert('Session not initialized. Please refresh the page.');
+          return;
+        }
+
         setDrawerOpen(false);
         setRendering(true);
         setRenderProgress(0);
@@ -960,19 +1020,12 @@
         }
 
         const formData = new FormData();
-        formData.append("knob_value", String(dryWetValue));
+        formData.append("user_id", getTelegramUserId());
+        formData.append("session_id", sessionId);
+        formData.append("knob_value", String(Math.round(dryWetValue)));
         formData.append("room_size", roomSize);
         formData.append("bpm", String(bpmValue));
         formData.append("username", getTelegramUsername());
-        formData.append("user_id", getTelegramUserId());
-
-        files.loops.forEach((item) => {
-          if (item.file) formData.append("loops", item.file);
-        });
-
-        files.shots.forEach((item) => {
-          if (item.file) formData.append("shots", item.file);
-        });
 
         try {
           const progressInterval = setInterval(() => {
@@ -995,32 +1048,26 @@
 
           if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.detail || `HTTP ${response.status}`);
-          }
-
-          const data = await response.json();
-
-          if (data.status === "success" && data.download_url) {
-            const audioResponse = await fetch(data.download_url);
-            const audioBlob = await audioResponse.blob();
-
-            const filename = data.download_url.split('/').pop();
-            const url = URL.createObjectURL(audioBlob);
-
-            setAudioUrl(url);
-            setRendering(false);
-
-            const audioElement = document.getElementById("flockity-output-audio");
-            if (audioElement) {
-              audioElement.setAttribute('data-filename', filename);
+            let errorDetail = errorData.detail || `HTTP ${response.status}`;
+            if (typeof errorDetail === 'object') {
+              errorDetail = JSON.stringify(errorDetail, null, 2);
             }
-
-            setTimeout(() => {
-              setDrawerOpen(true);
-            }, 150);
-          } else {
-            throw new Error("Invalid server response");
+            throw new Error(errorDetail);
           }
+
+          const audioBlob = await response.blob();
+          const url = URL.createObjectURL(audioBlob);
+          setAudioUrl(url);
+          setRendering(false);
+
+          const audioElement = document.getElementById("flockity-output-audio");
+          if (audioElement) {
+            audioElement.setAttribute('data-filename', 'output.mp3');
+          }
+
+          setTimeout(() => {
+            setDrawerOpen(true);
+          }, 150);
         } catch (error) {
           console.error("Render failed:", error);
           alert(`Render failed: ${error.message || String(error)}`);
@@ -1038,6 +1085,39 @@
         } else {
           audioElement.pause();
           setIsPlaying(false);
+        }
+      };
+
+      const resetSession = async () => {
+        if (!confirm('Create new session? This will clear all uploaded files.')) {
+          return;
+        }
+
+        try {
+          const userId = getTelegramUserId();
+          const response = await fetch('/api/session/new', {
+            method: 'POST',
+            body: new URLSearchParams({ user_id: userId })
+          });
+
+          if (!response.ok) throw new Error('Session creation failed');
+
+          const data = await response.json();
+          const newSessionId = data.session_id;
+
+          localStorage.removeItem('flockity_session_id');
+          localStorage.setItem('flockity_session_id', newSessionId);
+          setSessionId(newSessionId);
+
+          setFiles({ loops: [], shots: [] });
+          setAudioUrl(null);
+          setIsPlaying(false);
+          stopPreview();
+
+          alert('New session created! All files cleared.');
+        } catch (error) {
+          console.error('[SESSION] Reset failed:', error);
+          alert('Failed to create new session');
         }
       };
 
@@ -1076,16 +1156,13 @@
 
       return (
         <div className="fixed inset-0 flex h-screen w-screen items-center justify-center overflow-hidden bg-gradient-to-b from-[#0a0b0e] to-[#1a1c24]">
-          {/* MAIN CONTAINER */}
           <main className="relative mx-auto flex h-[100dvh] max-h-[850px] w-full max-w-[390px] flex-col overflow-hidden rounded-[38px] border border-zinc-700/80 bg-gradient-to-b from-[#e8e9eb] to-[#d4d6d9] shadow-[0_35px_90px_rgba(0,0,0,.8),inset_0_1px_0_white,inset_0_-2px_6px_rgba(0,0,0,.12)]">
-            {/* Corner screws */}
             <div className="pointer-events-none absolute left-3.5 top-3.5 z-10"><Screw /></div>
             <div className="pointer-events-none absolute right-3.5 top-3.5 z-10"><Screw /></div>
             <div className="pointer-events-none absolute bottom-3.5 left-3.5 z-10"><Screw /></div>
             <div className="pointer-events-none absolute bottom-3.5 right-3.5 z-10"><Screw /></div>
 
             <div className="flex h-full flex-col justify-between overflow-y-auto px-3 pb-2 pt-3">
-              {/* HEADER */}
               <header className="flex w-full shrink-0 items-center justify-between px-2 pb-1.5">
                 <div className="ml-3 min-w-0 flex-1">
                   <div className="flex items-baseline">
@@ -1100,6 +1177,16 @@
                 </div>
 
                 <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={resetSession}
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-400/70 bg-gradient-to-b from-[#fafafa] to-[#a8aaaf] text-[#2a2c32] shadow-[inset_1px_1px_2px_white,inset_-2px_-2px_3px_rgba(0,0,0,.2),0_3px_6px_rgba(0,0,0,.15)] transition-all active:scale-90"
+                    title="Reset Session"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/>
+                    </svg>
+                  </button>
                   <button
                     type="button"
                     onClick={() => window.open("https://instagram.com/", "_blank")}
@@ -1117,7 +1204,6 @@
                 </div>
               </header>
 
-              {/* OLED DISPLAY */}
               <section className="shrink-0 rounded-[20px] border border-black/70 bg-gradient-to-b from-[#0a0c10] to-[#060709] p-2.5 shadow-[inset_0_4px_14px_rgba(0,0,0,.9),inset_0_-1px_0_rgba(255,255,255,.04),0_5px_10px_rgba(0,0,0,.25)]">
                 <div className="flex items-center justify-between px-0.5 pb-1.5">
                   <span className="font-mono text-[7px] font-bold tracking-[0.18em] text-zinc-700">
@@ -1139,7 +1225,6 @@
                 </div>
               </section>
 
-              {/* INPUT BAYS */}
               <section className="mt-2 grid shrink-0 grid-cols-2 gap-2">
                 <InputBay
                   bay="loops"
@@ -1155,7 +1240,6 @@
                 />
               </section>
 
-              {/* CONTROL ZONE (ROOM | DRY/WET | BPM) */}
               <div className="mt-2 flex shrink-0 items-center justify-between gap-3 px-1">
                 <div className="shrink-0">
                   <RoomSizeSelector value={roomSize} onChange={setRoomSize} />
@@ -1166,7 +1250,6 @@
                 </div>
               </div>
 
-              {/* FOOTSWITCH */}
               <section className="mt-2 shrink-0 pb-1">
                 <Footswitch rendering={rendering} progress={renderProgress} onClick={startRender} />
                 <div className="mt-1.5 text-center font-mono text-[7px] font-semibold tracking-[0.16em] text-zinc-400">
@@ -1176,7 +1259,6 @@
             </div>
           </main>
 
-          {/* SLOT MANAGER MODAL */}
           {selectedSlot && (
             <SlotManager
               type={selectedSlot}
@@ -1191,7 +1273,6 @@
             />
           )}
 
-          {/* TRANSPORT DRAWER */}
           <TransportDrawer
             open={drawerOpen}
             audioUrl={audioUrl}

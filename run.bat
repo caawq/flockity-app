@@ -1,3 +1,4 @@
+set PYTHONIOENCODING=utf-8
 @echo off
 REM =========================================
 REM Flockity Production Launcher
@@ -10,26 +11,23 @@ echo [CLEANUP] Terminating orphan processes...
 taskkill /F /IM python.exe /FI "WINDOWTITLE eq FLOCKITY*" >nul 2>&1
 taskkill /F /IM cloudflared.exe >nul 2>&1
 
-REM Activate virtual environment
+REM Setup virtual environment (one-time)
 if not exist "venv\Scripts\activate.bat" (
-    echo [ERROR] Virtual environment not found. Creating...
-    python -m venv venv
-    call venv\Scripts\activate.bat
-    pip install --upgrade pip
-    pip install -r requirements.txt --no-cache-dir
-) else (
-    call venv\Scripts\activate.bat
+    echo [SETUP] Creating virtual environment with Python 3.9...
+    py -3.9 -m venv venv
 )
 
-REM Verify dependencies
-echo [CHECK] Verifying dependencies...
-python -c "import fastapi, uvicorn" 2>nul
+REM Activate venv
+call venv\Scripts\activate.bat
+
+REM Install dependencies (one-time, use pre-built wheels to avoid compilation)
+pip install --only-binary :all: -r requirements.txt --quiet --no-cache-dir 2>nul
 if errorlevel 1 (
-    echo [ERROR] Dependencies missing. Installing...
-    pip install -r requirements.txt --no-cache-dir
+    echo [SETUP] Installing with fallback...
+    pip install -r requirements.txt --quiet --no-cache-dir
 )
 
-REM Launch orchestrator
+REM Launch orchestrator with venv Python
 echo [LAUNCH] Starting orchestrator...
 python start.py
 
