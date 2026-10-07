@@ -81,7 +81,6 @@
       return classes.filter(Boolean).join(" ");
     }
 
-    // Сообщаем Telegram о готовности WebApp
     try {
       if (window.Telegram?.WebApp) {
         window.Telegram.WebApp.ready();
@@ -103,21 +102,18 @@
     };
 
     const getTelegramUserId = () => {
-      // 1. Проверяем URL параметр, переданный ботом (?user_id=123456789)
       const urlParams = new URLSearchParams(window.location.search);
       const urlId = urlParams.get('user_id');
       if (urlId && urlId !== "undefined" && urlId !== "null") {
         return String(urlId);
       }
 
-      // 2. Проверяем объект Telegram WebApp
       try {
         if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
           return String(window.Telegram.WebApp.initDataUnsafe.user.id);
         }
       } catch (e) {}
 
-      // 3. Fallback
       return "local_user";
     };
 
@@ -207,7 +203,7 @@
       }, []);
 
       return (
-        <div className="flex h-[55px] items-center gap-[2.5px] overflow-hidden px-1">
+        <div className="flex h-[48px] items-center gap-[2.5px] overflow-hidden px-1">
           {bars.map((height, index) => (
             <span
               key={index}
@@ -224,6 +220,33 @@
               }}
             />
           ))}
+        </div>
+      );
+    }
+
+    function UserStatsHUD({ username, totalRenders, remainingRenders }) {
+      return (
+        <div className="mb-2 rounded-[14px] border border-black/60 bg-gradient-to-r from-[#0d0f14] via-[#12151c] to-[#0d0f14] px-3 py-2 shadow-[inset_0_2px_6px_rgba(0,0,0,.7),0_2px_4px_rgba(0,0,0,.2)]">
+          <div className="grid grid-cols-3 items-center divide-x divide-white/[0.06] text-center">
+            <div className="px-1">
+              <div className="font-mono text-[7px] font-bold tracking-[0.14em] text-zinc-500">OPERATOR</div>
+              <div className="truncate font-mono text-[10px] font-black text-zinc-200">
+                {username ? `@${username.replace(/^@/, '')}` : "@guest"}
+              </div>
+            </div>
+            <div className="px-1">
+              <div className="font-mono text-[7px] font-bold tracking-[0.14em] text-zinc-500">TOTAL RENDERS</div>
+              <div className="font-mono text-[11px] font-black text-[#c084fc]">
+                {totalRenders}
+              </div>
+            </div>
+            <div className="px-1">
+              <div className="font-mono text-[7px] font-bold tracking-[0.14em] text-zinc-500">REMAINING</div>
+              <div className="font-mono text-[11px] font-black text-[#a855f7]">
+                {remainingRenders === -1 || remainingRenders === "∞" ? "∞" : remainingRenders}
+              </div>
+            </div>
+          </div>
         </div>
       );
     }
@@ -353,7 +376,7 @@
       return (
         <div
           className={cn(
-            "relative flex min-h-[90px] cursor-pointer flex-col justify-between overflow-hidden rounded-xl border p-2.5 transition-all duration-200",
+            "relative flex min-h-[86px] cursor-pointer flex-col justify-between overflow-hidden rounded-xl border p-2.5 transition-all duration-200",
             "bg-gradient-to-b from-[#16181d] to-[#0e1014]",
             "shadow-[inset_0_1px_0_rgba(255,255,255,.03),inset_0_-6px_14px_rgba(0,0,0,.3),0_4px_8px_rgba(0,0,0,.2)]",
             dragActive
@@ -396,7 +419,7 @@
           {dragActive && (
             <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-[#a855f7]/10 backdrop-blur-[2px] animate-[breathe_3s_ease-in-out_infinite]">
               <div className="text-[#c084fc]">
-                <UploadIcon size={36} />
+                <UploadIcon size={34} />
               </div>
             </div>
           )}
@@ -446,16 +469,16 @@
       ];
 
       return (
-        <div className="flex flex-col items-center gap-2">
-          <div className="font-mono text-[10px] font-black tracking-[0.2em] text-zinc-400">ROOM</div>
-          <div className="flex flex-col gap-1.5 rounded-lg border border-white/10 bg-gradient-to-b from-[#14161b] to-[#0c0e12] p-1.5 shadow-[inset_0_2px_4px_rgba(0,0,0,.6)]">
+        <div className="flex flex-col items-center gap-1.5">
+          <div className="font-mono text-[9px] font-black tracking-[0.2em] text-zinc-400">ROOM</div>
+          <div className="flex flex-col gap-1 rounded-lg border border-white/10 bg-gradient-to-b from-[#14161b] to-[#0c0e12] p-1 shadow-[inset_0_2px_4px_rgba(0,0,0,.6)]">
             {options.map((option) => (
               <button
                 key={option.value}
                 type="button"
                 onClick={() => onChange(option.value)}
                 className={cn(
-                  "flex h-[34px] w-[34px] items-center justify-center rounded-md font-mono text-[12px] font-black tracking-wide transition-all",
+                  "flex h-[32px] w-[32px] items-center justify-center rounded-md font-mono text-[11px] font-black tracking-wide transition-all",
                   value === option.value
                     ? "bg-[#a855f7] text-white shadow-[0_0_10px_rgba(168,85,247,.5),inset_0_1px_0_rgba(255,255,255,.2)]"
                     : "text-zinc-600 hover:text-zinc-400 active:scale-90"
@@ -519,8 +542,8 @@
       };
 
       return (
-        <div className="flex flex-col items-center gap-2">
-          <div className="font-mono text-[10px] font-black tracking-[0.2em] text-zinc-400">BPM</div>
+        <div className="flex flex-col items-center gap-1.5">
+          <div className="font-mono text-[9px] font-black tracking-[0.2em] text-zinc-400">BPM</div>
           <div
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
@@ -528,7 +551,7 @@
             onPointerCancel={stopDragging}
             onWheel={handleWheel}
             onDoubleClick={() => setEditing(true)}
-            className="flex h-[110px] w-[52px] cursor-ns-resize select-none items-center justify-center rounded-lg border border-white/10 bg-gradient-to-b from-[#14161b] to-[#0a0c10] shadow-[inset_0_3px_6px_rgba(0,0,0,.7),0_2px_4px_rgba(0,0,0,.3)]"
+            className="flex h-[100px] w-[50px] cursor-ns-resize select-none items-center justify-center rounded-lg border border-white/10 bg-gradient-to-b from-[#14161b] to-[#0a0c10] shadow-[inset_0_3px_6px_rgba(0,0,0,.7),0_2px_4px_rgba(0,0,0,.3)]"
           >
             {editing ? (
               <input
@@ -544,10 +567,10 @@
                     setEditing(false);
                   }
                 }}
-                className="w-full bg-transparent text-center font-mono text-[16px] font-black text-[#c084fc] outline-none"
+                className="w-full bg-transparent text-center font-mono text-[15px] font-black text-[#c084fc] outline-none"
               />
             ) : (
-              <div className="font-mono text-[16px] font-black text-[#c084fc] tracking-tight">
+              <div className="font-mono text-[15px] font-black text-[#c084fc] tracking-tight">
                 {value}
               </div>
             )}
@@ -612,7 +635,7 @@
 
       return (
         <div className="flex flex-col items-center">
-          <div className="mb-2 font-mono text-[10px] font-black tracking-[0.18em] text-zinc-400">
+          <div className="mb-1.5 font-mono text-[9px] font-black tracking-[0.18em] text-zinc-400">
             DRY / WET
           </div>
 
@@ -626,7 +649,7 @@
               const newValue = Math.max(0, Math.min(100, value + delta));
               onChange(newValue);
             }}
-            className="cursor-ns-resize select-none rounded-lg border border-white/10 bg-gradient-to-b from-[#14161b] to-[#0a0c10] px-6 py-3 font-mono text-[28px] font-black tracking-[0.14em] shadow-[inset_0_3px_6px_rgba(0,0,0,.7),0_2px_4px_rgba(0,0,0,.3)] transition-all duration-100"
+            className="cursor-ns-resize select-none rounded-lg border border-white/10 bg-gradient-to-b from-[#14161b] to-[#0a0c10] px-5 py-2.5 font-mono text-[26px] font-black tracking-[0.14em] shadow-[inset_0_3px_6px_rgba(0,0,0,.7),0_2px_4px_rgba(0,0,0,.3)] transition-all duration-100"
             style={{
               color: '#c084fc',
               boxShadow: `inset 0 3px 6px rgba(0,0,0,.7), 0 2px 4px rgba(0,0,0,.3), 0 0 ${10 + value / 2}px rgba(192,132,252,${0.3 + value / 150})`,
@@ -647,7 +670,7 @@
           onClick={onClick}
           className="group relative mx-auto block w-full max-w-[300px] select-none transition-transform duration-100 active:scale-[0.96] disabled:cursor-wait"
         >
-          <div className="relative h-[64px] rounded-[18px] border border-[#0e1014] bg-gradient-to-b from-[#30343a] via-[#1a1d23] to-[#0a0c10] p-[5px] shadow-[0_10px_18px_rgba(0,0,0,.4),inset_0_1px_2px_rgba(255,255,255,.15),inset_0_-8px_12px_rgba(0,0,0,.6)]">
+          <div className="relative h-[60px] rounded-[18px] border border-[#0e1014] bg-gradient-to-b from-[#30343a] via-[#1a1d23] to-[#0a0c10] p-[5px] shadow-[0_10px_18px_rgba(0,0,0,.4),inset_0_1px_2px_rgba(255,255,255,.15),inset_0_-8px_12px_rgba(0,0,0,.6)]">
             <div className="relative flex h-full items-center justify-center overflow-hidden rounded-[14px] border border-black/80 bg-gradient-to-b from-[#22252b] to-[#0f1115] shadow-[inset_0_3px_6px_rgba(0,0,0,.8)]">
               <div
                 className={cn(
@@ -824,10 +847,31 @@
       const [isPlaying, setIsPlaying] = useState(false);
       const [sessionId, setSessionId] = useState(null);
 
+      // Статистика пользователя
+      const [totalRenders, setTotalRenders] = useState(0);
+      const [remainingRenders, setRemainingRenders] = useState("∞");
+
       const previewAudioRef = useRef(null);
+
+      const fetchUserStats = useCallback(async () => {
+        try {
+          const uid = getTelegramUserId();
+          const uname = getTelegramUsername();
+          const res = await fetch(`/api/user/stats?user_id=${encodeURIComponent(uid)}&username=${encodeURIComponent(uname)}`);
+          if (res.ok) {
+            const data = await res.json();
+            setTotalRenders(data.total_renders || 0);
+            setRemainingRenders(data.remaining_renders === -1 ? "∞" : data.remaining_renders);
+          }
+        } catch (e) {
+          console.warn("Could not fetch user stats:", e);
+        }
+      }, []);
 
       useEffect(() => {
         const initSession = async () => {
+          fetchUserStats();
+
           const urlParams = new URLSearchParams(window.location.search);
           let sid = urlParams.get('session_id');
 
@@ -862,7 +906,7 @@
         };
 
         initSession();
-      }, []);
+      }, [fetchUserStats]);
 
       const addFiles = useCallback(async (bay, incomingFiles) => {
         let currentSessionId = sessionId;
@@ -1041,17 +1085,20 @@
         formData.append("bpm", String(bpmValue));
         formData.append("username", currentUsername);
 
-        try {
-          const progressInterval = setInterval(() => {
-            setRenderProgress((prev) => {
-              if (prev >= 95) {
-                clearInterval(progressInterval);
-                return 95;
-              }
-              return prev + 5;
-            });
-          }, 200);
+        // Плавный реалистичный прогресс-бар (~24 секунды средний рендер)
+        const startTime = Date.now();
+        const estimatedDurationMs = 24000;
 
+        const progressInterval = setInterval(() => {
+          const elapsed = Date.now() - startTime;
+          const ratio = Math.min(1, elapsed / estimatedDurationMs);
+          
+          // Логарифмическое плавное замедление к 94%
+          const currentPct = Math.round(Math.min(94, 94 * (1 - Math.pow(1 - ratio, 2))));
+          setRenderProgress(currentPct);
+        }, 300);
+
+        try {
           const response = await fetch("/api/render", {
             method: "POST",
             body: formData,
@@ -1069,7 +1116,6 @@
             throw new Error(errorDetail);
           }
 
-          // Извлекаем настоящее имя файла из заголовков ответа
           let extractedFilename = response.headers.get("X-Track-Filename");
           if (!extractedFilename) {
             const disposition = response.headers.get("Content-Disposition");
@@ -1094,10 +1140,14 @@
             audioElement.setAttribute('data-filename', resolvedName);
           }
 
+          // Обновляем статистику пользователя
+          fetchUserStats();
+
           setTimeout(() => {
             setDrawerOpen(true);
           }, 150);
         } catch (error) {
+          clearInterval(progressInterval);
           console.error("Render failed:", error);
           alert(`Render failed: ${error.message || String(error)}`);
           setRendering(false);
@@ -1192,7 +1242,7 @@
             <div className="pointer-events-none absolute bottom-3.5 right-3.5 z-10"><Screw /></div>
 
             <div className="flex h-full flex-col justify-between overflow-y-auto px-3 pb-2 pt-3">
-              <header className="flex w-full shrink-0 items-center justify-between px-2 pb-1.5">
+              <header className="flex w-full shrink-0 items-center justify-between px-2 pb-1">
                 <div className="ml-3 min-w-0 flex-1">
                   <div className="flex items-baseline">
                     <h1 className="text-[19px] font-black tracking-[-0.02em] text-[#14161b] drop-shadow-[0_1px_0_rgba(255,255,255,.9)]">
@@ -1233,6 +1283,14 @@
                 </div>
               </header>
 
+              {/* НОВЫЙ БЛОК СТАТИСТИКИ ПОЛЬЗОВАТЕЛЯ */}
+              <UserStatsHUD
+                username={getTelegramUsername()}
+                totalRenders={totalRenders}
+                remainingRenders={remainingRenders}
+              />
+
+              {/* MASTER RACK */}
               <section className="shrink-0 rounded-[20px] border border-black/70 bg-gradient-to-b from-[#0a0c10] to-[#060709] p-2.5 shadow-[inset_0_4px_14px_rgba(0,0,0,.9),inset_0_-1px_0_rgba(255,255,255,.04),0_5px_10px_rgba(0,0,0,.25)]">
                 <div className="flex items-center justify-between px-0.5 pb-1.5">
                   <span className="font-mono text-[7px] font-bold tracking-[0.18em] text-zinc-700">
@@ -1274,14 +1332,14 @@
                   <RoomSizeSelector value={roomSize} onChange={setRoomSize} />
                 </div>
                 <DryWetKnob value={dryWetValue} onChange={setDryWetValue} />
-                <div className="pt-8">
+                <div className="pt-7">
                   <BpmControl value={bpmValue} onChange={setBpmValue} />
                 </div>
               </div>
 
               <section className="mt-2 shrink-0 pb-1">
                 <Footswitch rendering={rendering} progress={renderProgress} onClick={startRender} />
-                <div className="mt-1.5 text-center font-mono text-[7px] font-semibold tracking-[0.16em] text-zinc-400">
+                <div className="mt-1 text-center font-mono text-[7px] font-semibold tracking-[0.16em] text-zinc-400">
                   FLOCKITY by @muinne__
                 </div>
               </section>

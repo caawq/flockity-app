@@ -1,4 +1,3 @@
-
 __pycache__/
 *.py[cod]
 *$py.class
@@ -11,7 +10,12 @@ env/
 .idea/
 .vscode/
 
+bot_token.txt
+config.env
+
 MIDI/
+*.mid
+*.midi
 users/
 session_midi/
 upload_temp/
